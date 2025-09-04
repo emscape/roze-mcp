@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Create Subscription Request",
+  "type": "object",
+  "required": ["email"],
+  "properties": {
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Subscriber email address"
+    },
+    "firstName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 50,
+      "description": "Optional subscriber first name"
+    },
+    "lastName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 50,
+      "description": "Optional subscriber last name"
+    },
+    "preferences": {
+      "type": "object",
+      "properties": {
+        "newsletter": {
+          "type": "boolean",
+          "default": true,
+          "description": "Subscribe to newsletter"
+        },
+        "promotions": {
+          "type": "boolean",
+          "default": false,
+          "description": "Subscribe to promotional emails"
+        },
+        "productUpdates": {
+          "type": "boolean",
+          "default": false,
+          "description": "Subscribe to product update notifications"
+        }
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "string",
+      "enum": ["website", "mobile_app", "social_media", "referral", "other"],
+      "default": "website",
+      "description": "Subscription source"
+    },
+    "tags": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 30
+      },
+      "description": "Optional tags for segmentation"
+    }
+  },
+  "additionalProperties": false
+}
