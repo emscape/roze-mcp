@@ -23,7 +23,7 @@ cp .env.example .env
 # Build the server
 npm run build
 
-# Start development server
+# Start the server
 npm run dev
 ```
 
@@ -41,12 +41,12 @@ npm run dev
 - `api_subscribe_create` - Create subscription with validation
 - `healthz` - Health check endpoint
 
-## Firebase Function Endpoints
+## Cloud Run Endpoints
 
-The server connects directly to these live Firebase Functions:
-- **Health Check**: `https://us-west1-myfriendroze-platform.cloudfunctions.net/healthz`
-- **Create Order**: `https://us-west1-myfriendroze-platform.cloudfunctions.net/createOrder`
-- **Create Subscription**: `https://us-west1-myfriendroze-platform.cloudfunctions.net/createSubscription`
+The server connects directly to these live Cloud Run services:
+- **Health Check**: `https://healthz-gpx6sdx3yq-uw.a.run.app`
+- **Create Order**: `https://createorder-gpx6sdx3yq-uw.a.run.app`
+- **Create Subscription**: `https://createsubscription-gpx6sdx3yq-uw.a.run.app`
 
 ## VS Code Integration
 

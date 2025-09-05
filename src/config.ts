@@ -12,11 +12,11 @@ const envSchema = z.object({
 // Parse and validate environment
 const env = envSchema.parse(process.env);
 
-// Firebase Function URLs - production ready endpoints
+// Cloud Run URLs - production ready endpoints
 const FIREBASE_FUNCTIONS = {
-  healthCheck: "https://us-west1-myfriendroze-platform.cloudfunctions.net/healthz",
-  createOrder: "https://us-west1-myfriendroze-platform.cloudfunctions.net/createOrder",
-  createSubscription: "https://us-west1-myfriendroze-platform.cloudfunctions.net/createSubscription",
+  healthCheck: "https://healthz-gpx6sdx3yq-uw.a.run.app",
+  createOrder: "https://createorder-gpx6sdx3yq-uw.a.run.app",
+  createSubscription: "https://createsubscription-gpx6sdx3yq-uw.a.run.app",
 } as const;
 
 export const config = {
