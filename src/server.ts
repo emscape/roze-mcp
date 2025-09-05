@@ -5,18 +5,17 @@
  * Since we don't have the official MCP SDK, we'll implement the protocol directly
  */
 import * as readline from 'readline';
-import { config } from './config';
+import { config, type ApiTarget } from './config';
 import {
   readOpenAPI,
   readSchema,
-  getEndpoints,
+  getApiBaseUrl,
   createOrder,
   createSubscription,
   healthCheck,
   toolDefinitions,
   type SchemaName,
 } from './mcp';
-import type { ApiTarget } from './config';
 
 interface JsonRpcRequest {
   jsonrpc: '2.0';
@@ -144,35 +143,45 @@ class RozeMCPServer {
 
   private async callTool(name: string, args: any): Promise<any> {
     switch (name) {
-      case 'contracts_readOpenAPI':
+      case 'contracts_read_openapi':
         return await readOpenAPI();
 
-      case 'contracts_readSchema':
+      case 'contracts_read_schema':
         const schemaName = args?.name as SchemaName;
         if (!schemaName) {
           throw new Error('Schema name is required');
         }
         return await readSchema(schemaName);
 
-      case 'env_getEndpoints':
-        return await getEndpoints();
+      case 'env_get_api_base':
+        const target = args?.target as ApiTarget;
+        if (!target) {
+          throw new Error('Target environment is required');
+        }
+        return await getApiBaseUrl(target);
 
       case 'api_orders_create':
         const orderPayload = args?.payload;
-        if (!orderPayload) {
-          throw new Error('Payload is required');
+        const orderTarget = args?.target as ApiTarget;
+        if (!orderPayload || !orderTarget) {
+          throw new Error('Payload and target are required');
         }
-        return await createOrder(orderPayload);
+        return await createOrder(orderPayload, orderTarget);
 
       case 'api_subscribe_create':
         const subscribePayload = args?.payload;
-        if (!subscribePayload) {
-          throw new Error('Payload is required');
+        const subscribeTarget = args?.target as ApiTarget;
+        if (!subscribePayload || !subscribeTarget) {
+          throw new Error('Payload and target are required');
         }
-        return await createSubscription(subscribePayload);
+        return await createSubscription(subscribePayload, subscribeTarget);
 
       case 'healthz':
-        return await healthCheck();
+        const healthTarget = args?.target as ApiTarget;
+        if (!healthTarget) {
+          throw new Error('Target environment is required');
+        }
+        return await healthCheck(healthTarget);
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -221,7 +230,8 @@ class RozeMCPServer {
   }
 
   start() {
-    this.log('info', 'MCP server ready');
+    console.log(`[MCP] MCP ready - PROXY_MODE=${config.proxyMode}`);
+    this.log('info', `MCP server ready with proxy mode: ${config.proxyMode}`);
     // Server is ready to receive JSON-RPC requests via stdin
   }
 }

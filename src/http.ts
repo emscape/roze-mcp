@@ -61,6 +61,37 @@ export async function makeRequest(
 }
 
 /**
+ * Redact PII from data for safe logging
+ */
+export function redactPII(data: any): any {
+  if (!data || typeof data !== 'object') return data;
+
+  const redacted = { ...data };
+
+  // Redact email addresses (keep first 3 chars)
+  if (typeof redacted.email === 'string') {
+    const email = redacted.email;
+    redacted.email = email.length > 3 ? email.substring(0, 3) + '***@***' : '***@***';
+  }
+
+  // Redact customer email if nested
+  if (redacted.customer?.email) {
+    const email = redacted.customer.email;
+    redacted.customer.email = email.length > 3 ? email.substring(0, 3) + '***@***' : '***@***';
+  }
+
+  // Redact amounts
+  if (typeof redacted.total === 'number') {
+    redacted.total = '[REDACTED]';
+  }
+  if (typeof redacted.amount === 'number') {
+    redacted.amount = '[REDACTED]';
+  }
+
+  return redacted;
+}
+
+/**
  * Sanitize error messages to prevent secret leakage
  */
 function sanitizeError(message: string): string {

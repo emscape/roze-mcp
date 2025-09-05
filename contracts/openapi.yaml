@@ -1,7 +1,15 @@
 openapi: 3.0.3
 info:
   title: Roze API
-  description: API contract for Roze application services
+  description: |
+    API contract for Roze application services
+
+    ## Changelog
+    - v1.0.0: Initial API contract with orders and subscriptions
+
+    ## Usage Notes
+    - Use MCP bridge for dev/testing with emulator
+    - Call directly from app clients for production with App Check/Auth
   version: 1.0.0
   contact:
     name: Roze Team

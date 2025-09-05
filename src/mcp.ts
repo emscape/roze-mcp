@@ -2,13 +2,8 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import * as fs from 'fs';
 import * as path from 'path';
-import { config, type ApiTarget } from './config';
-import {
-  callHealthz,
-  callCreateOrder,
-  callCreateSubscription,
-  type FirebaseResponse
-} from './firebase-client';
+import { getApiBase, isProxyAllowed, type ApiTarget } from './config';
+import { makeRequest, redactPII, type ApiResponse } from './http';
 
 // Initialize AJV with formats
 const ajv = new Ajv({ allErrors: true });
@@ -57,16 +52,33 @@ export async function readSchema(name: SchemaName): Promise<object> {
 }
 
 /**
- * MCP Tool: Get Firebase Function names
+ * MCP Tool: Get API base URL for target environment
  */
-export async function getEndpoints(): Promise<{ functions: typeof config.functions }> {
-  return { functions: config.functions };
+export async function getApiBaseUrl(target: ApiTarget): Promise<{ base: string; target: string }> {
+  return {
+    base: getApiBase(target),
+    target
+  };
 }
 
 /**
- * MCP Tool: Create order
+ * MCP Tool: Create order (dev-only proxy)
  */
-export async function createOrder(payload: any): Promise<FirebaseResponse> {
+export async function createOrder(payload: any, target: ApiTarget): Promise<ApiResponse> {
+  // Check if proxy is allowed for this target
+  if (!isProxyAllowed(target)) {
+    return {
+      ok: false,
+      status: 403,
+      body: {
+        error: 'Proxy disabled in prod; call from app clients with App Check/Auth',
+        target,
+        proxyMode: 'dev-only'
+      },
+      error: 'Production proxy calls are disabled for security'
+    };
+  }
+
   // Validate payload against schema
   const isValid = validateOrderCreate(payload);
   if (!isValid) {
@@ -74,6 +86,8 @@ export async function createOrder(payload: any): Promise<FirebaseResponse> {
       `${err.instancePath || 'root'}: ${err.message}`
     ).join('; ') || 'Validation failed';
 
+    console.log('[MCP] Order validation failed:', redactPII({ payload, errors }));
+
     return {
       status: 400,
       body: { error: 'Validation failed', details: errors },
@@ -82,14 +96,33 @@ export async function createOrder(payload: any): Promise<FirebaseResponse> {
     };
   }
 
-  // Call Firebase Callable Function
-  return callCreateOrder(payload);
+  // Make API request to dev environment
+  const baseUrl = getApiBase(target);
+  const url = `${baseUrl}/v1/orders`;
+
+  console.log('[MCP] Creating order via proxy:', redactPII({ target, url: baseUrl }));
+
+  return makeRequest('POST', url, payload);
 }
 
 /**
- * MCP Tool: Create subscription
+ * MCP Tool: Create subscription (dev-only proxy)
  */
-export async function createSubscription(payload: any): Promise<FirebaseResponse> {
+export async function createSubscription(payload: any, target: ApiTarget): Promise<ApiResponse> {
+  // Check if proxy is allowed for this target
+  if (!isProxyAllowed(target)) {
+    return {
+      ok: false,
+      status: 403,
+      body: {
+        error: 'Proxy disabled in prod; call from app clients with App Check/Auth',
+        target,
+        proxyMode: 'dev-only'
+      },
+      error: 'Production proxy calls are disabled for security'
+    };
+  }
+
   // Validate payload against schema
   const isValid = validateSubscribeCreate(payload);
   if (!isValid) {
@@ -97,6 +130,8 @@ export async function createSubscription(payload: any): Promise<FirebaseResponse
       `${err.instancePath || 'root'}: ${err.message}`
     ).join('; ') || 'Validation failed';
 
+    console.log('[MCP] Subscription validation failed:', redactPII({ payload, errors }));
+
     return {
       status: 400,
       body: { error: 'Validation failed', details: errors },
@@ -105,19 +140,30 @@ export async function createSubscription(payload: any): Promise<FirebaseResponse
     };
   }
 
-  // Call Firebase Callable Function
-  return callCreateSubscription(payload);
+  // Make API request to dev environment
+  const baseUrl = getApiBase(target);
+  const url = `${baseUrl}/v1/subscribe`;
+
+  console.log('[MCP] Creating subscription via proxy:', redactPII({ target, url: baseUrl }));
+
+  return makeRequest('POST', url, payload);
 }
 
 /**
  * MCP Tool: Health check
  */
-export async function healthCheck(): Promise<{ ok: boolean; status?: number; error?: string }> {
-  const response = await callHealthz();
+export async function healthCheck(target: ApiTarget): Promise<{ ok: boolean; status?: number; error?: string; target: string }> {
+  const baseUrl = getApiBase(target);
+  const url = `${baseUrl}/healthz`;
+
+  console.log(`[MCP] Health check for ${target}:`, baseUrl);
+
+  const response = await makeRequest('GET', url);
 
   return {
     ok: response.ok,
     status: response.status,
+    target,
     ...(response.error && { error: response.error }),
   };
 }
@@ -126,7 +172,7 @@ export async function healthCheck(): Promise<{ ok: boolean; status?: number; err
  * Tool definitions for MCP server registration
  */
 export const toolDefinitions = {
-  'contracts_readOpenAPI': {
+  'contracts_read_openapi': {
     description: 'Read the OpenAPI contract specification',
     inputSchema: {
       type: 'object',
@@ -134,7 +180,7 @@ export const toolDefinitions = {
       required: [],
     },
   },
-  'contracts_readSchema': {
+  'contracts_read_schema': {
     description: 'Read a JSON schema by name',
     inputSchema: {
       type: 'object',
@@ -148,16 +194,22 @@ export const toolDefinitions = {
       required: ['name'],
     },
   },
-  'env_getEndpoints': {
-    description: 'Get Firebase Callable Function names',
+  'env_get_api_base': {
+    description: 'Get API base URL for target environment',
     inputSchema: {
       type: 'object',
-      properties: {},
-      required: [],
+      properties: {
+        target: {
+          type: 'string',
+          enum: ['dev', 'prod'],
+          description: 'Target environment (dev=emulator, prod=production)',
+        },
+      },
+      required: ['target'],
     },
   },
   'api_orders_create': {
-    description: 'Create a new order with validation using Firebase Callable Function (requires authentication)',
+    description: 'Create a new order with validation (dev-only proxy)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -165,12 +217,17 @@ export const toolDefinitions = {
           type: 'object',
           description: 'Order data to create (matches OpenAPI schema)',
         },
+        target: {
+          type: 'string',
+          enum: ['dev', 'prod'],
+          description: 'Target environment (prod calls will be blocked)',
+        },
       },
-      required: ['payload'],
+      required: ['payload', 'target'],
     },
   },
   'api_subscribe_create': {
-    description: 'Create a new subscription with validation using Firebase Callable Function (authentication optional)',
+    description: 'Create a new subscription with validation (dev-only proxy)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -178,16 +235,27 @@ export const toolDefinitions = {
           type: 'object',
           description: 'Subscription data to create (matches OpenAPI schema)',
         },
+        target: {
+          type: 'string',
+          enum: ['dev', 'prod'],
+          description: 'Target environment (prod calls will be blocked)',
+        },
       },
-      required: ['payload'],
+      required: ['payload', 'target'],
     },
   },
   'healthz': {
-    description: 'Check Firebase Callable Functions health status (no authentication required)',
+    description: 'Check API health status for target environment',
     inputSchema: {
       type: 'object',
-      properties: {},
-      required: [],
+      properties: {
+        target: {
+          type: 'string',
+          enum: ['dev', 'prod'],
+          description: 'Target environment to check',
+        },
+      },
+      required: ['target'],
     },
   },
 } as const;
