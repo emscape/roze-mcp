@@ -2,7 +2,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getApiBase, type ApiTarget } from './config';
+import { getEndpoint, config, type ApiTarget } from './config';
 import { makeRequest, type ApiResponse } from './http';
 
 // Initialize AJV with formats
@@ -52,23 +52,23 @@ export async function readSchema(name: SchemaName): Promise<object> {
 }
 
 /**
- * MCP Tool: Get API base URL
+ * MCP Tool: Get Firebase Function endpoints
  */
-export async function getApiBaseUrl(target: ApiTarget): Promise<{ base: string }> {
-  return { base: getApiBase(target) };
+export async function getEndpoints(): Promise<{ endpoints: typeof config.endpoints }> {
+  return { endpoints: config.endpoints };
 }
 
 /**
  * MCP Tool: Create order
  */
-export async function createOrder(payload: any, target: ApiTarget): Promise<ApiResponse> {
+export async function createOrder(payload: any): Promise<ApiResponse> {
   // Validate payload against schema
   const isValid = validateOrderCreate(payload);
   if (!isValid) {
-    const errors = validateOrderCreate.errors?.map(err => 
+    const errors = validateOrderCreate.errors?.map(err =>
       `${err.instancePath || 'root'}: ${err.message}`
     ).join('; ') || 'Validation failed';
-    
+
     return {
       status: 400,
       body: { error: 'Validation failed', details: errors },
@@ -77,24 +77,23 @@ export async function createOrder(payload: any, target: ApiTarget): Promise<ApiR
     };
   }
 
-  // Make API request
-  const baseUrl = getApiBase(target);
-  const url = `${baseUrl}/v1/orders`;
-  
+  // Make API request to Firebase Function
+  const url = getEndpoint('createOrder');
+
   return makeRequest('POST', url, payload);
 }
 
 /**
  * MCP Tool: Create subscription
  */
-export async function createSubscription(payload: any, target: ApiTarget): Promise<ApiResponse> {
+export async function createSubscription(payload: any): Promise<ApiResponse> {
   // Validate payload against schema
   const isValid = validateSubscribeCreate(payload);
   if (!isValid) {
-    const errors = validateSubscribeCreate.errors?.map(err => 
+    const errors = validateSubscribeCreate.errors?.map(err =>
       `${err.instancePath || 'root'}: ${err.message}`
     ).join('; ') || 'Validation failed';
-    
+
     return {
       status: 400,
       body: { error: 'Validation failed', details: errors },
@@ -103,22 +102,20 @@ export async function createSubscription(payload: any, target: ApiTarget): Promi
     };
   }
 
-  // Make API request
-  const baseUrl = getApiBase(target);
-  const url = `${baseUrl}/v1/subscribe`;
-  
+  // Make API request to Firebase Function
+  const url = getEndpoint('createSubscription');
+
   return makeRequest('POST', url, payload);
 }
 
 /**
  * MCP Tool: Health check
  */
-export async function healthCheck(target: ApiTarget): Promise<{ ok: boolean; status?: number; error?: string }> {
-  const baseUrl = getApiBase(target);
-  const url = `${baseUrl}/healthz`;
-  
+export async function healthCheck(): Promise<{ ok: boolean; status?: number; error?: string }> {
+  const url = getEndpoint('healthCheck');
+
   const response = await makeRequest('GET', url);
-  
+
   return {
     ok: response.ok,
     status: response.status,
@@ -130,7 +127,7 @@ export async function healthCheck(target: ApiTarget): Promise<{ ok: boolean; sta
  * Tool definitions for MCP server registration
  */
 export const toolDefinitions = {
-  'contracts.readOpenAPI': {
+  'contracts_readOpenAPI': {
     description: 'Read the OpenAPI contract specification',
     inputSchema: {
       type: 'object',
@@ -138,7 +135,7 @@ export const toolDefinitions = {
       required: [],
     },
   },
-  'contracts.readSchema': {
+  'contracts_readSchema': {
     description: 'Read a JSON schema by name',
     inputSchema: {
       type: 'object',
@@ -152,68 +149,46 @@ export const toolDefinitions = {
       required: ['name'],
     },
   },
-  'env.getApiBase': {
-    description: 'Get API base URL for target environment',
+  'env_getEndpoints': {
+    description: 'Get Firebase Function endpoints',
     inputSchema: {
       type: 'object',
-      properties: {
-        target: {
-          type: 'string',
-          enum: ['dev', 'prod'],
-          description: 'Target environment',
-        },
-      },
-      required: ['target'],
+      properties: {},
+      required: [],
     },
   },
-  'api.orders.create': {
-    description: 'Create a new order with validation',
+  'api_orders_create': {
+    description: 'Create a new order with validation using live Firebase Function',
     inputSchema: {
       type: 'object',
       properties: {
         payload: {
           type: 'object',
-          description: 'Order data to create',
-        },
-        target: {
-          type: 'string',
-          enum: ['dev', 'prod'],
-          description: 'Target environment',
+          description: 'Order data to create (matches OpenAPI schema)',
         },
       },
-      required: ['payload', 'target'],
+      required: ['payload'],
     },
   },
-  'api.subscribe.create': {
-    description: 'Create a new subscription with validation',
+  'api_subscribe_create': {
+    description: 'Create a new subscription with validation using live Firebase Function',
     inputSchema: {
       type: 'object',
       properties: {
         payload: {
           type: 'object',
-          description: 'Subscription data to create',
-        },
-        target: {
-          type: 'string',
-          enum: ['dev', 'prod'],
-          description: 'Target environment',
+          description: 'Subscription data to create (matches OpenAPI schema)',
         },
       },
-      required: ['payload', 'target'],
+      required: ['payload'],
     },
   },
   'healthz': {
-    description: 'Check API health status',
+    description: 'Check Firebase Functions health status',
     inputSchema: {
       type: 'object',
-      properties: {
-        target: {
-          type: 'string',
-          enum: ['dev', 'prod'],
-          description: 'Target environment',
-        },
-      },
-      required: ['target'],
+      properties: {},
+      required: [],
     },
   },
 } as const;

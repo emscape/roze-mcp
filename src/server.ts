@@ -9,7 +9,7 @@ import { config } from './config';
 import {
   readOpenAPI,
   readSchema,
-  getApiBaseUrl,
+  getEndpoints,
   createOrder,
   createSubscription,
   healthCheck,
@@ -144,45 +144,35 @@ class RozeMCPServer {
 
   private async callTool(name: string, args: any): Promise<any> {
     switch (name) {
-      case 'contracts.readOpenAPI':
+      case 'contracts_readOpenAPI':
         return await readOpenAPI();
 
-      case 'contracts.readSchema':
+      case 'contracts_readSchema':
         const schemaName = args?.name as SchemaName;
         if (!schemaName) {
           throw new Error('Schema name is required');
         }
         return await readSchema(schemaName);
 
-      case 'env.getApiBase':
-        const target = args?.target as ApiTarget;
-        if (!target) {
-          throw new Error('Target environment is required');
-        }
-        return await getApiBaseUrl(target);
+      case 'env_getEndpoints':
+        return await getEndpoints();
 
-      case 'api.orders.create':
+      case 'api_orders_create':
         const orderPayload = args?.payload;
-        const orderTarget = args?.target as ApiTarget;
-        if (!orderPayload || !orderTarget) {
-          throw new Error('Payload and target are required');
+        if (!orderPayload) {
+          throw new Error('Payload is required');
         }
-        return await createOrder(orderPayload, orderTarget);
+        return await createOrder(orderPayload);
 
-      case 'api.subscribe.create':
+      case 'api_subscribe_create':
         const subscribePayload = args?.payload;
-        const subscribeTarget = args?.target as ApiTarget;
-        if (!subscribePayload || !subscribeTarget) {
-          throw new Error('Payload and target are required');
+        if (!subscribePayload) {
+          throw new Error('Payload is required');
         }
-        return await createSubscription(subscribePayload, subscribeTarget);
+        return await createSubscription(subscribePayload);
 
       case 'healthz':
-        const healthTarget = args?.target as ApiTarget;
-        if (!healthTarget) {
-          throw new Error('Target environment is required');
-        }
-        return await healthCheck(healthTarget);
+        return await healthCheck();
 
       default:
         throw new Error(`Unknown tool: ${name}`);

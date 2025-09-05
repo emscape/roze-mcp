@@ -6,22 +6,28 @@ dotenv.config();
 
 // Environment schema validation
 const envSchema = z.object({
-  API_BASE_DEV: z.string().url('API_BASE_DEV must be a valid URL'),
-  API_BASE_PROD: z.string().url('API_BASE_PROD must be a valid URL'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 
 // Parse and validate environment
 const env = envSchema.parse(process.env);
 
+// Firebase Function URLs - production ready endpoints
+const FIREBASE_FUNCTIONS = {
+  healthCheck: "https://us-west1-myfriendroze-platform.cloudfunctions.net/healthz",
+  createOrder: "https://us-west1-myfriendroze-platform.cloudfunctions.net/createOrder",
+  createSubscription: "https://us-west1-myfriendroze-platform.cloudfunctions.net/createSubscription",
+} as const;
+
 export const config = {
-  apiBaseDev: env.API_BASE_DEV,
-  apiBaseProd: env.API_BASE_PROD,
   logLevel: env.LOG_LEVEL,
+  endpoints: FIREBASE_FUNCTIONS,
 } as const;
 
 export type ApiTarget = 'dev' | 'prod';
 
-export function getApiBase(target: ApiTarget): string {
-  return target === 'dev' ? config.apiBaseDev : config.apiBaseProd;
+// For now, both dev and prod use the same Firebase Functions
+// In the future, you could have separate dev/staging functions
+export function getEndpoint(operation: keyof typeof FIREBASE_FUNCTIONS): string {
+  return FIREBASE_FUNCTIONS[operation];
 }
