@@ -2,8 +2,13 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getEndpoint, config, type ApiTarget } from './config';
-import { makeRequest, type ApiResponse } from './http';
+import { config, type ApiTarget } from './config';
+import {
+  callHealthz,
+  callCreateOrder,
+  callCreateSubscription,
+  type FirebaseResponse
+} from './firebase-client';
 
 // Initialize AJV with formats
 const ajv = new Ajv({ allErrors: true });
@@ -52,16 +57,16 @@ export async function readSchema(name: SchemaName): Promise<object> {
 }
 
 /**
- * MCP Tool: Get Firebase Function endpoints
+ * MCP Tool: Get Firebase Function names
  */
-export async function getEndpoints(): Promise<{ endpoints: typeof config.endpoints }> {
-  return { endpoints: config.endpoints };
+export async function getEndpoints(): Promise<{ functions: typeof config.functions }> {
+  return { functions: config.functions };
 }
 
 /**
  * MCP Tool: Create order
  */
-export async function createOrder(payload: any): Promise<ApiResponse> {
+export async function createOrder(payload: any): Promise<FirebaseResponse> {
   // Validate payload against schema
   const isValid = validateOrderCreate(payload);
   if (!isValid) {
@@ -77,16 +82,14 @@ export async function createOrder(payload: any): Promise<ApiResponse> {
     };
   }
 
-  // Make API request to Firebase Function
-  const url = getEndpoint('createOrder');
-
-  return makeRequest('POST', url, payload);
+  // Call Firebase Callable Function
+  return callCreateOrder(payload);
 }
 
 /**
  * MCP Tool: Create subscription
  */
-export async function createSubscription(payload: any): Promise<ApiResponse> {
+export async function createSubscription(payload: any): Promise<FirebaseResponse> {
   // Validate payload against schema
   const isValid = validateSubscribeCreate(payload);
   if (!isValid) {
@@ -102,19 +105,15 @@ export async function createSubscription(payload: any): Promise<ApiResponse> {
     };
   }
 
-  // Make API request to Firebase Function
-  const url = getEndpoint('createSubscription');
-
-  return makeRequest('POST', url, payload);
+  // Call Firebase Callable Function
+  return callCreateSubscription(payload);
 }
 
 /**
  * MCP Tool: Health check
  */
 export async function healthCheck(): Promise<{ ok: boolean; status?: number; error?: string }> {
-  const url = getEndpoint('healthCheck');
-
-  const response = await makeRequest('GET', url);
+  const response = await callHealthz();
 
   return {
     ok: response.ok,
@@ -150,7 +149,7 @@ export const toolDefinitions = {
     },
   },
   'env_getEndpoints': {
-    description: 'Get Firebase Function endpoints',
+    description: 'Get Firebase Callable Function names',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -158,7 +157,7 @@ export const toolDefinitions = {
     },
   },
   'api_orders_create': {
-    description: 'Create a new order with validation using live Firebase Function',
+    description: 'Create a new order with validation using Firebase Callable Function (requires authentication)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -171,7 +170,7 @@ export const toolDefinitions = {
     },
   },
   'api_subscribe_create': {
-    description: 'Create a new subscription with validation using live Firebase Function',
+    description: 'Create a new subscription with validation using Firebase Callable Function (authentication optional)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -184,7 +183,7 @@ export const toolDefinitions = {
     },
   },
   'healthz': {
-    description: 'Check Firebase Functions health status',
+    description: 'Check Firebase Callable Functions health status (no authentication required)',
     inputSchema: {
       type: 'object',
       properties: {},

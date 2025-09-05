@@ -10,21 +10,27 @@
     "check:schemas": "ts-node scripts/validate-schemas.ts",
     "prestart": "npm run build"
   },
-  "keywords": ["mcp", "bridge", "roze", "api"],
+  "keywords": [
+    "mcp",
+    "bridge",
+    "roze",
+    "api"
+  ],
   "author": "Roze Team",
   "license": "MIT",
   "dependencies": {
-    "dotenv": "^16.3.1",
-    "axios": "^1.6.2",
     "ajv": "^8.12.0",
     "ajv-formats": "^2.1.1",
+    "axios": "^1.6.2",
+    "dotenv": "^16.3.1",
+    "firebase": "^12.2.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "typescript": "^5.3.2",
+    "nodemon": "^3.0.2",
     "ts-node": "^10.9.1",
-    "nodemon": "^3.0.2"
+    "typescript": "^5.3.2"
   },
   "engines": {
     "node": ">=20.0.0"

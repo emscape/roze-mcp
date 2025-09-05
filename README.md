@@ -1,13 +1,14 @@
 # Roze MCP Bridge Server
 
-An MCP (Model Context Protocol) server that exposes shared tools for both VS Code windows (Astro site + Flutter app) to use the same API contract and live Firebase Functions.
+An MCP (Model Context Protocol) server that exposes shared tools for both VS Code windows (Astro site + Flutter app) to use the same API contract and secure Firebase Callable Functions.
 
 ## Features
 
 - **Contract-first API**: OpenAPI spec as source of truth
 - **Schema validation**: JSON Schema validation with AJV
-- **Live Firebase Functions**: Direct integration with production endpoints
-- **No secrets**: No API keys needed, functions are publicly accessible
+- **Firebase Callable Functions**: Secure, authenticated Firebase functions
+- **Authentication Support**: Handles Firebase Auth for secure operations
+- **Type Safety**: Firebase SDK with proper error handling
 - **Health checks**: Built-in health monitoring
 - **TypeScript**: Full type safety
 
@@ -36,17 +37,23 @@ npm run dev
 ### Environment
 - `env_getEndpoints` - Get Firebase Function endpoints
 
-### API Calls (Live Firebase Functions)
-- `api_orders_create` - Create order with validation
-- `api_subscribe_create` - Create subscription with validation
-- `healthz` - Health check endpoint
+### API Calls (Firebase Callable Functions)
+- `api_orders_create` - Create order with validation (requires authentication)
+- `api_subscribe_create` - Create subscription with validation (authentication optional)
+- `healthz` - Health check endpoint (no authentication required)
 
-## Cloud Run Endpoints
+## Firebase Callable Functions
 
-The server connects directly to these live Cloud Run services:
-- **Health Check**: `https://healthz-gpx6sdx3yq-uw.a.run.app`
-- **Create Order**: `https://createorder-gpx6sdx3yq-uw.a.run.app`
-- **Create Subscription**: `https://createsubscription-gpx6sdx3yq-uw.a.run.app`
+The server uses Firebase SDK to call these secure callable functions:
+- **Health Check**: `firebase.functions().httpsCallable('healthz')`
+- **Create Order**: `firebase.functions().httpsCallable('createOrder')` (authenticated)
+- **Create Subscription**: `firebase.functions().httpsCallable('createSubscription')` (optional auth)
+
+### Security Benefits:
+- ✅ **Authentication Required**: createOrder requires user authentication
+- ✅ **No Public HTTP Endpoints**: Functions only accessible via Firebase SDK
+- ✅ **Audit Trail**: Orders track which user created them
+- ✅ **Type Safety**: Better error handling with Firebase HttpsError
 
 ## VS Code Integration
 
